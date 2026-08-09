@@ -49,11 +49,23 @@ don't paste it in public.
 port=7777          ; game port (UDP)
 password=""        ; join password ("" = open server)
 max_players=5      ; joining pilots (6 crew total on a home host)
+name="Defense Swarm Server"  ; shown in the in-game server browser
+public=true        ; announce to the server browser (false = unlisted)
 
 [admin]
 port=8080          ; web admin port (TCP)
 token="a1b2c3"     ; admin key, auto-generated
 ```
+
+## The server browser
+
+Public servers (`public=true`, the default) heartbeat to a tiny master
+registry every minute -- name, pilots aboard, wave, password flag and
+version -- and appear in the in-game **SERVER BROWSER** on the title
+screen. The registry records your public address automatically; you
+never have to publish an IP. Set `public=false` to stay unlisted
+(friends can still join by IP). The registry source lives in
+[`master/`](master/) (a Cloudflare Worker).
 
 CLI overrides: `--port=7777 --password=secret` (handy for containers).
 

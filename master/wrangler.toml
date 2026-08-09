@@ -1,0 +1,7 @@
+name = "swarm-master"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+[[kv_namespaces]]
+binding = "SERVERS"
+id = "8068fb984c49488385156b43b18a4dd7"
