@@ -33,8 +33,22 @@ if [[ "$SRC" == http* ]]; then
   # installed on minimal VPS images and its absence must not make us
   # install the archive as the binary.
   if [[ "$(head -c2 "$tmp/pkg")" == "PK" ]]; then
-    command -v unzip &>/dev/null || apt-get -y install unzip &>/dev/null || true
-    unzip -o "$tmp/pkg" -d "$DIR" >/dev/null
+    # Minimal images ship without unzip AND with stale apt lists --
+    # update before installing, and fall back to python3's zipfile.
+    if ! command -v unzip &>/dev/null; then
+      echo "==> installing unzip"
+      apt-get -qq update >/dev/null 2>&1 || true
+      apt-get -qq -y install unzip >/dev/null 2>&1 || true
+    fi
+    if command -v unzip &>/dev/null; then
+      unzip -o "$tmp/pkg" -d "$DIR" >/dev/null
+    elif command -v python3 &>/dev/null; then
+      echo "==> unzip unavailable, extracting with python3"
+      python3 -m zipfile -e "$tmp/pkg" "$DIR/"
+    else
+      echo "ERROR: cannot extract the server package (need unzip or python3)"
+      exit 1
+    fi
     found=$(find "$DIR" -maxdepth 2 -name '*.x86_64' | head -n1)
     [[ -n "$found" && "$found" != "$BIN" ]] && mv "$found" "$BIN"
   else
