@@ -70,6 +70,28 @@ if command -v ufw &>/dev/null; then
   ufw allow 8080/tcp >/dev/null || true
 fi
 
+# A one-word command for "what's my admin link?" -- nobody should
+# ever be sent digging through a config file for the token.
+cat > /usr/local/bin/swarm-admin <<'HELPER'
+#!/usr/bin/env bash
+CFG="/home/swarm/.local/share/godot/app_userdata/Defense Swarm/server.cfg"
+TOKEN=$(grep -oP 'token="\K[^"]+' "$CFG" 2>/dev/null)
+PUB=$(curl -4 -fsS -m 5 ifconfig.me 2>/dev/null)
+URLHOST="$PUB"
+if [[ -z "$PUB" ]]; then
+  PUB=$(curl -6 -fsS -m 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+  [[ "$PUB" == *:* ]] && URLHOST="[$PUB]" || URLHOST="$PUB"
+fi
+if [[ -z "$TOKEN" ]]; then
+  echo "server has not written its token yet -- is it running?"
+  echo "  systemctl status defense-swarm"
+  exit 1
+fi
+echo "Web admin:    http://$URLHOST:8080/?t=$TOKEN"
+echo "Players join: $PUB  (UDP 7777)"
+HELPER
+chmod +x /usr/local/bin/swarm-admin
+
 systemctl daemon-reload
 systemctl enable --now $SVC
 echo "==> waiting for first boot"
@@ -105,12 +127,11 @@ echo
 if [[ -n "$TOKEN" ]]; then
   echo "   Web admin:   http://$URLHOST:8080/?t=$TOKEN"
 else
-  echo "   Web admin:   http://$URLHOST:8080/?t=<token>"
-  echo "   (token not readable yet -- get it with:"
-  echo "    sudo grep -oP 'token=\"\\K[^\"]+' \"$CFG\")"
+  echo "   Web admin link not ready yet -- just run:  swarm-admin"
 fi
 echo "   Players join: $PUB  (UDP 7777)"
 echo
+echo " Lost the link? Type:  swarm-admin"
 echo " Set a join password on the web admin page. Manage with:"
 echo "   systemctl status $SVC     journalctl -u $SVC -f"
 echo "=============================================================="
