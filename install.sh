@@ -29,7 +29,10 @@ if [[ "$SRC" == http* ]]; then
   echo "==> downloading $SRC"
   tmp=$(mktemp -d)
   curl -fsSL "$SRC" -o "$tmp/pkg"
-  if file "$tmp/pkg" | grep -qi zip; then
+  # Zip detection by magic bytes ("PK") -- the `file` tool is not
+  # installed on minimal VPS images and its absence must not make us
+  # install the archive as the binary.
+  if [[ "$(head -c2 "$tmp/pkg")" == "PK" ]]; then
     command -v unzip &>/dev/null || apt-get -y install unzip &>/dev/null || true
     unzip -o "$tmp/pkg" -d "$DIR" >/dev/null
     found=$(find "$DIR" -maxdepth 2 -name '*.x86_64' | head -n1)
@@ -70,17 +73,42 @@ fi
 systemctl daemon-reload
 systemctl enable --now $SVC
 echo "==> waiting for first boot"
-sleep 5
 
+# Wait up to 30s for the server to boot and write its config (which
+# holds the admin token) instead of hoping 5s is enough.
 CFG="/home/$RUNUSER/.local/share/godot/app_userdata/Defense Swarm/server.cfg"
-TOKEN=$(grep -oP 'token="\K[^"]+' "$CFG" 2>/dev/null || true)
-PUB=$(curl -fsS -m 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+TOKEN=""
+for i in $(seq 1 30); do
+  TOKEN=$(grep -oP 'token="\K[^"]+' "$CFG" 2>/dev/null || true)
+  [[ -n "$TOKEN" ]] && break
+  sleep 1
+done
+
+# Public address: prefer IPv4 (every player can reach it); fall back
+# to IPv6 in URL brackets, then to whatever the box reports locally.
+PUB=$(curl -4 -fsS -m 5 ifconfig.me 2>/dev/null || true)
+URLHOST="$PUB"
+if [[ -z "$PUB" ]]; then
+  PUB=$(curl -6 -fsS -m 5 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+  [[ "$PUB" == *:* ]] && URLHOST="[$PUB]" || URLHOST="$PUB"
+fi
 
 echo
 echo "=============================================================="
-echo " Defense Swarm server is RUNNING."
+if systemctl is-active --quiet $SVC; then
+  echo " Defense Swarm server is RUNNING."
+else
+  echo " WARNING: the service is NOT running -- check:"
+  echo "   journalctl -u $SVC -n 50"
+fi
 echo
-echo "   Web admin:   http://$PUB:8080/?t=$TOKEN"
+if [[ -n "$TOKEN" ]]; then
+  echo "   Web admin:   http://$URLHOST:8080/?t=$TOKEN"
+else
+  echo "   Web admin:   http://$URLHOST:8080/?t=<token>"
+  echo "   (token not readable yet -- get it with:"
+  echo "    sudo grep -oP 'token=\"\\K[^\"]+' \"$CFG\")"
+fi
 echo "   Players join: $PUB  (UDP 7777)"
 echo
 echo " Set a join password on the web admin page. Manage with:"
