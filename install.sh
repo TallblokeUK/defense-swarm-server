@@ -12,7 +12,7 @@
 # opens the firewall (ufw, if present), then prints your web-admin link.
 set -euo pipefail
 
-DEFAULT_URL="https://github.com/TallblokeUK/defense-swarm-server/releases/latest/download/defense-swarm-server-linux.zip"
+DEFAULT_URL="https://raw.githubusercontent.com/TallblokeUK/defense-swarm-server/main/releases/defense-swarm-server-linux.zip"
 SRC="${1:-$DEFAULT_URL}"
 DIR=/opt/defense-swarm
 BIN="$DIR/defense_swarm.x86_64"
