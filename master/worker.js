@@ -15,9 +15,14 @@ export default {
       } catch {
         return new Response('{"ok":false}', { status: 400, headers });
       }
-      // The registry records the source IP itself: hosts never need to
-      // know their own public address.
-      const ip = req.headers.get("CF-Connecting-IP") || "0.0.0.0";
+      // Prefer the server's self-reported IPv4: a v6-preferring VPS
+      // announces over IPv6, and listing that address strands every
+      // v4-only player. Fall back to the request source IP.
+      const ip4 = String(b.ip4 || "");
+      const ip =
+        /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip4)
+          ? ip4
+          : req.headers.get("CF-Connecting-IP") || "0.0.0.0";
       const port = Math.min(Math.max(parseInt(b.port) || 7777, 1), 65535);
       const meta = {
         ip,
