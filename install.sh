@@ -107,7 +107,10 @@ HELPER
 chmod +x /usr/local/bin/swarm-admin
 
 systemctl daemon-reload
-systemctl enable --now $SVC
+systemctl enable $SVC >/dev/null 2>&1
+# restart, not enable --now: re-running this installer to UPGRADE must
+# actually swap the running binary for the new one.
+systemctl restart $SVC
 echo "==> waiting for first boot"
 
 # Wait up to 30s for the server to boot and write its config (which
