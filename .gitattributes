@@ -1,0 +1,4 @@
+install.sh text eol=lf
+*.bat text eol=crlf
+*.zip binary
+*.x86_64 binary
